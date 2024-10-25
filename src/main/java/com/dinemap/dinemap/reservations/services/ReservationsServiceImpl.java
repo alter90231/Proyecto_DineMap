@@ -5,7 +5,10 @@ import com.dinemap.dinemap.reservations.entities.Models.RestaurantEntity;
 import com.dinemap.dinemap.reservations.entities.ReservationsEntity;
 import com.dinemap.dinemap.reservations.repositories.IReservationsRepository;
 import com.dinemap.dinemap.reservations.repositories.IRestaurantRepository;
+import com.dinemap.dinemap.users.services.IUsersService;
 import com.dinemap.dinemap.users.token.JwtTokenProvider;
+import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.security.SignatureException;
 import org.bson.types.ObjectId;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -21,6 +24,8 @@ public class ReservationsServiceImpl implements IReservationsService{
     private IRestaurantRepository restaurantRepository;
     @Autowired
     private JwtTokenProvider jwtTokenProvider;
+    @Autowired
+    private IUsersService usersService;
     @Override
     public List<ReservationsEntity> getReservationsByLoggedUser(String token) throws Exception {
         try{
@@ -40,48 +45,69 @@ public class ReservationsServiceImpl implements IReservationsService{
     public ReservationsEntity save(ReservationsEntity reservationsEntity, String token) throws Exception {
         try{
             String username = jwtTokenProvider.getUsernameFromToken(token);
+            String emailUser = usersService.getUserEmail(token);
+            String phoneUser = usersService.getUserPhone(token);
             reservationsEntity.setCreatedBy(username);
-
+            reservationsEntity.setCustomerEmail(emailUser);
+            reservationsEntity.setCustomerPhone(phoneUser);
             RestaurantEntity restaurantEntity = restaurantRepository.findByRestaurantId(reservationsEntity.getRestaurantId())
                             .orElseThrow(() -> new Exception("Restaurant not found")) ;
             reservationsEntity.setRestaurants(restaurantEntity);
             return reservationsRepository.save(reservationsEntity);
+
         }catch (Exception e){
             throw new Exception(e.getMessage());
         }
     }
 
     @Override
-    public ReservationsEntity update(String _id, ReservationsEntity reservationsEntity) throws Exception {
+    public ReservationsEntity update(String _id, ReservationsEntity reservationsEntity, String token) throws Exception {
         try{
             ObjectId objectId = new ObjectId(_id);
+            String username;
+            try{
+                username = jwtTokenProvider.getUsernameFromToken(token);
+            } catch (SignatureException e) {
+                throw new Exception("Invalid JWT signature: " + e.getMessage());
+            } catch (ExpiredJwtException e) {
+                throw new Exception("JWT token has expired: " + e.getMessage());
+            } catch (Exception e) {
+                throw new Exception("JWT validation error: " + e.getMessage());
+            }
             ReservationsEntity existingReservation = reservationsRepository.findById(objectId)
                     .orElseThrow(() -> new Exception("Reservation not found"));
+
+            if(!existingReservation.getCreatedBy().equals(username)){
+                throw new Exception("Unauthorized: You can only update your own reservations.");
+            }
             RestaurantEntity restaurantEntity = restaurantRepository.findByRestaurantId(reservationsEntity.getRestaurantId())
                     .orElseThrow(() -> new Exception("Restaurant not found"));
 
-            Optional<ReservationsEntity> entityOptional = reservationsRepository.findById(objectId);
-            ReservationsEntity entityUpdate = entityOptional.get();
-            reservationsEntity.set_id(objectId);
-            reservationsEntity.setDate(existingReservation.getDate());
-            reservationsEntity.setCreatedAt(existingReservation.getCreatedAt());
-            reservationsEntity.setRestaurants(restaurantEntity);
-            entityUpdate = reservationsRepository.save(reservationsEntity);
-            return entityUpdate;
+            existingReservation.setRestaurants(restaurantEntity);
+            existingReservation.setCustomerName(reservationsEntity.getCustomerName());
+            existingReservation.setNumberOfGuests(reservationsEntity.getNumberOfGuests());
+            existingReservation.setUpdateBy(username);
+
+            return reservationsRepository.save(existingReservation);
         }catch (Exception e){
             throw new Exception(e.getMessage());
         }
     }
     @Override
-    public ReservationsEntity cancelled(String _id) throws Exception {
+    public ReservationsEntity cancelled(String _id, String token) throws Exception {
         try{
             ObjectId objectId = new ObjectId(_id);
+            String username = jwtTokenProvider.getUsernameFromToken(token);
+
             ReservationsEntity existingReservation = reservationsRepository.findById(objectId)
                     .orElseThrow(() -> new Exception("Reservation not found"));
-            Optional<ReservationsEntity> reservationsEntity = reservationsRepository.findById(objectId);
-            ReservationsEntity reservations = reservationsEntity.get();
-            reservations.setStatus(ReservationsStatus.CANCELLED);
-            return reservationsRepository.save(reservations);
+
+            if(!existingReservation.getCreatedBy().equals(username)){
+                throw new Exception("Unauthorized: You can only cancel your own reservations.");
+            }
+
+            existingReservation.setStatus(ReservationsStatus.CANCELLED);
+            return reservationsRepository.save(existingReservation);
         }catch (Exception e){
             throw new Exception(e.getMessage());
         }

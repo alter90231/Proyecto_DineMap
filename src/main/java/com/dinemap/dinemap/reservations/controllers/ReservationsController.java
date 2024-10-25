@@ -36,17 +36,23 @@ public class ReservationsController {
         }
     }
     @PutMapping("/{_id}")
-    public ResponseEntity<?> updateReservation(@PathVariable String _id, @RequestBody ReservationsEntity reservationsEntity){
+    public ResponseEntity<?> updateReservation(@RequestHeader("Authorization") String token,@PathVariable String _id, @RequestBody ReservationsEntity reservationsEntity){
         try{
-            return ResponseEntity.status(HttpStatus.OK).body(reservationsService.update(_id, reservationsEntity));
+            if (token.startsWith("Bearer ")) {
+                token = token.substring(7);
+            }
+            return ResponseEntity.status(HttpStatus.OK).body(reservationsService.update(_id, reservationsEntity, token));
         }catch (Exception e){
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("{\"error:\":\"Error.Por favor intente mas tarde.\"}");
         }
     }
     @PutMapping("/cancelled/{_id}")
-    public ResponseEntity<?> cancelledReservation( @PathVariable String _id){
+    public ResponseEntity<?> cancelledReservation(@RequestHeader("Authorization") String token, @PathVariable String _id){
         try{
-            return ResponseEntity.status(HttpStatus.OK).body(reservationsService.cancelled(_id));
+            if (token.startsWith("Bearer ")) {
+                token = token.substring(7);
+            }
+            return ResponseEntity.status(HttpStatus.OK).body(reservationsService.cancelled(_id, token));
         }catch (Exception e){
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("{\"error:\":\"Error.Por favor intente mas tarde.\"}");
         }

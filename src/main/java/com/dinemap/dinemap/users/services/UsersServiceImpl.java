@@ -31,6 +31,8 @@ public class UsersServiceImpl implements IUsersService{
             }
             String hashedPasswrord = passwordEncoder.encode(usersEntity.getPassword());
             usersEntity.setPassword(hashedPasswrord);
+            usersEntity.setCreatedBy(usersEntity.getUsername());
+            usersEntity.setUpdateBy(usersEntity.getUsername());
             UsersEntity savedUser = usersRepository.save(usersEntity);
             auditRepository.save(new AuditEntity("Registro de usuario", usersEntity.getUsername(), "El usuario se registro correctamente"));
             return savedUser;
@@ -55,5 +57,28 @@ public class UsersServiceImpl implements IUsersService{
             e.printStackTrace();
             throw new Exception(e.getMessage());
         }
+    }
+    @Override
+    public String getUserProvince(String token) throws Exception {
+        String username = jwtTokenProvider.getUsernameFromToken(token);
+        UsersEntity user = usersRepository.findByUsername(username)
+                .orElseThrow(() -> new Exception("User not found"));
+        return user.getProvince();
+    }
+
+    @Override
+    public String getUserEmail(String token) throws Exception {
+        String username = jwtTokenProvider.getUsernameFromToken(token);
+        UsersEntity user = usersRepository.findByUsername(username)
+                .orElseThrow(() -> new Exception("User not found"));
+        return user.getEmail();
+    }
+
+    @Override
+    public String getUserPhone(String token) throws Exception {
+        String username = jwtTokenProvider.getUsernameFromToken(token);
+        UsersEntity user = usersRepository.findByUsername(username)
+                .orElseThrow(() -> new Exception("User not found"));
+        return user.getPhoneNumber();
     }
 }

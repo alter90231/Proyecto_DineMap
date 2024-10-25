@@ -1,4 +1,4 @@
-package com.dinemap.dinemap.users.entities.Base;
+package com.dinemap.dinemap.restaurants.entities.Base;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;

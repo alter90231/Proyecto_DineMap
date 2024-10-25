@@ -22,9 +22,9 @@ public class JwtTokenProvider {
         return Jwts.builder()
                 .setClaims(claims)
                 .setSubject(username)
-                .setIssuedAt(new Date(System.currentTimeMillis()))
+                .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + EXPIRATION_TIME))
-                .signWith(key, SignatureAlgorithm.HS512)
+                .signWith(SignatureAlgorithm.HS512, key)
                 .compact();
     }
     public boolean validateToken(String token){
@@ -32,7 +32,9 @@ public class JwtTokenProvider {
             Jwts.parser()
                     .setSigningKey(key)
                     .build()
-                    .parseClaimsJws(token);
+                    .parseClaimsJws(token)
+                    .getBody()
+                    .getSubject();
             return true;
         }catch (JwtException | IllegalArgumentException e){
             return false;
@@ -46,5 +48,4 @@ public class JwtTokenProvider {
                 .getBody();
         return claims.getSubject();
     }
-
 }
